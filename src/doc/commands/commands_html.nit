@@ -284,12 +284,6 @@ redef class CmdIniLicense
 end
 
 redef class CmdEntityFile
-
-	# URL to the file
-	#
-	# Can be refined in subtools.
-	var file_url: nullable String = file is lazy, writable
-
 	redef fun to_html do
 		var file = self.file
 		if file == null then return ""
