@@ -44,6 +44,9 @@ class NitwebConfig
 
 	# Catalog to pass to handlers.
 	var catalog: Catalog
+
+	# Temporary directory for embedded images and files
+	var tmp_dir = "tmp" is writable
 end
 
 # Specific handler for the nitweb API.
