@@ -15,6 +15,7 @@
 module term
 
 import commands::commands_parser
+import commands::commands_md
 import templates::templates_term
 
 redef class CommandParser

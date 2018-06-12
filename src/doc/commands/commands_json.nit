@@ -22,6 +22,7 @@ import commands_main
 import commands_usage
 
 import templates::templates_json
+import json::static
 
 redef class DocCommand
 	# Return a JSON Serializable representation of `self` results
