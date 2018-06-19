@@ -40,7 +40,7 @@ These common types are defined defined as serializable by this project.
 The attributes could also be typed with user-defined `serialize`
 classes or any other subclass of `Serializable`.
 
-~~~
+~~~nitish
 # This `serialize` class is composed of two `serialize` attributes
 class Partnership
 	serialize
@@ -65,6 +65,8 @@ end
   and locally declared attributes are serializable.
 
   ~~~
+  import serialization
+
   module shared_between_clients is serialize
   ~~~
 
@@ -73,6 +75,8 @@ end
   Only the attributes with the `serialize` annotation will be serialized.
 
   ~~~
+  import serialization
+
   # Only serialize the `name`
   class UserCredentials
       var name: String is serialize
@@ -94,6 +98,8 @@ The `noserialize` annotation mark an exception in a `serialize` module or class 
   Usually, it will also be annotated with `lazy` to get its value by another mean after the object has been deserialized.
 
   ~~~
+  import serialization
+
   # Once again, only serialize the `name`
   class UserCredentials
       serialize
@@ -112,6 +118,8 @@ This annotation can be useful to change the name of an attribute to what is expe
 Or to use identifiers in the serialization format that are reserved keywords in Nit (like `class` and `type`).
 
 ~~~
+import serialization
+
 class UserCredentials
 	serialize
 
@@ -158,6 +166,9 @@ two serialization services: `User::core_serialize_to` and
 ~~~
 module user_credentials
 
+import serialization
+import crypto::basic_ciphers
+
 # User credentials for a website
 class User
 	super Serializable
@@ -191,16 +202,16 @@ redef class Deserializer
 	do
 		if name == "User" then
 			# Deserialize normally
-			var user = deserialize_attribute("name")
+			var user = deserialize_attribute("name").as(String)
 
 			# Decrypt password
-			var pass = deserialize_attribute("pass").rot(-13)
+			var pass = deserialize_attribute("pass").as(String).rot(-13)
 
 			# Deserialize the path and load the avatar from the file system
-			var avatar_path = deserialize_attribute("avatar_path")
+			var avatar_path = deserialize_attribute("avatar_path").as(String)
 			var avatar = new Image(avatar_path)
 
-			return new User(user, pass, avatar)
+			return new User(user, pass.to_s, avatar)
 		end
 
 		return super
@@ -215,9 +226,8 @@ class Image
 	var path: String
 
 	# ASCII art composing this image
-	var ascii_art: String = path.read_all is lazy
+	var ascii_art: String = path.to_path.read_all is lazy
 end
-
 ~~~
 
 See the documentation of the module `serialization::serialization` for more
@@ -233,8 +243,7 @@ you must use implementations of `Serializer` and `Deserializer`.
 The main implementations of these services are `JsonSerializer` and `JsonDeserializer`,
 from the `json_serialization` module.
 
-~~~
-import json
+~~~nitish
 import user_credentials
 
 # Data to be serialized and deserialized

@@ -97,7 +97,7 @@ assert matches.first.document == d1
 
 The FileIndex is a StringIndex able to index and retrieve files.
 
-~~~nit
+~~~
 index = new FileIndex
 
 index.index_files(["/path/to/doc/1", "/path/to/doc/2"])

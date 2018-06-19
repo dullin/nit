@@ -23,7 +23,7 @@ it may be possible to support other platforms with some tweaks.
       You will probably need to tweak it to you system or update the download URL
       to the latest SDK tools from https://developer.android.com/studio/index.html#command-tools
 
-      ~~~
+      ~~~sh
       # Fetch and extract SDK tools
       mkdir -p ~/Android/Sdk
       cd ~/Android/Sdk
@@ -43,13 +43,13 @@ it may be possible to support other platforms with some tweaks.
 2. Set the environment variable ANDROID_HOME to the SDK installation directory, usually `~/Android/Sdk/`.
    Use the following command to setup the variable for bash.
 
-   ~~~
+   ~~~sh
    echo "export ANDROID_HOME=~/Android/Sdk/" >> ~/.bashrc
    ~~~
 
 3. Install Java 8 JDK, on Debian/Ubuntu systems you can use the following command:
 
-   ~~~
+   ~~~sh
    sudo apt install openjdk-8-jdk
    ~~~
 
@@ -71,7 +71,7 @@ customize the generated Android application.
 
   Example usage to specify an extra permission:
 
-  ~~~
+  ~~~sh
   android_manifest """<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>"""
   ~~~
 
@@ -143,7 +143,7 @@ APK file, it can then be published on the Play Store.
    command similar to the following, replacing `KEYSTORE_PATH` and `KEY_ALIAS`
    with the desired values.
 
-   ~~~
+   ~~~sh
    keytool -genkey -keystore KEYSTORE_PATH -alias KEY_ALIAS -sigalg MD5withRSA -keyalg RSA -keysize 1024 -validity 10000
    ~~~
 
@@ -154,7 +154,7 @@ APK file, it can then be published on the Play Store.
    You can use the following commands by replacing the right-hand values
    to your own configuration.
 
-   ~~~
+   ~~~sh
    export KEYSTORE=keystore_path
    export KEY_ALIAS=key_alias
    export TSA_SERVER=timestamp_authority_server_url # Optional
