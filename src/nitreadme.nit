@@ -15,6 +15,7 @@
 module nitreadme
 
 import code_index
+import mdoc_index
 import frontend
 import frontend::parse_examples
 import commands::commands_docdown
@@ -52,8 +53,12 @@ private class NitReadmePhase
 		model.mdoc_parser = md_parser
 
 		# create index
-		var index = new ExamplesIndex(mbuilder)
-		index.index_model(model)
+		var code_index = new ExamplesIndex(toolcontext)
+		code_index.index_model(model)
+
+		var nlp_proc = new NLPClient("http://localhost:9000")
+		var mdoc_index = new CommentsIndex(nlp_proc)
+		mdoc_index.index_model(model)
 
 		var mpackages = extract_mpackages(mmodules)
 		for mpackage in mpackages do
@@ -71,7 +76,8 @@ private class NitReadmePhase
 				continue
 			end
 
-			suggest_examples_replacement(index, mpackage)
+			# suggest_examples_replacement(index, mpackage)
+			suggest_cards(mdoc_index, mpackage)
 		end
 	end
 
@@ -86,6 +92,27 @@ private class NitReadmePhase
 		return mpackages.to_a
 	end
 
+	fun suggest_cards(index: CommentsIndex, mpackage: MPackage) do
+		var mdoc = mpackage.mdoc_or_fallback
+		if mdoc == null then
+			print "no mdoc"
+			return
+		end
+
+		var ast = mdoc.mdoc_document
+		var sugg = new SuggestVisitor(index, mpackage)
+		sugg.enter_visit(ast)
+
+		# TODO matchs blocks
+			# headings
+			# paragraphs
+			# list items
+			# code blocks
+			# cards and span codes
+
+		# TODO suggest cards
+	end
+
 	fun suggest_examples_replacement(index: ExamplesIndex, mpackage: MPackage) do
 		var suggester = new ExampleSuggest(toolcontext, index)
 
@@ -96,11 +123,9 @@ private class NitReadmePhase
 		end
 		suggester.match_mdoc(mdoc)
 
-# TODO already use examples
-# TODO best match at best place
-# TODO replace node
-
-
+		# TODO already use examples
+		# TODO best match at best place
+		# TODO replace node
 	end
 end
 
@@ -113,6 +138,27 @@ class ExamplesIndex
 			index_mentity(mmodule)
 		end
 		# update_index
+	end
+end
+
+class CommentsIndex
+	super MDocIndex
+
+	fun index_model(model: Model) do
+
+		var filter = new ModelFilter(
+			min_visibility = protected_visibility,
+			accept_attribute = false,
+			accept_fictive = false,
+			accept_broken = false
+		)
+
+		for mentity in model.collect_mentities(filter) do
+			if mentity isa MClassDef then continue
+			if mentity isa MPropDef then continue
+			index_mentity(mentity)
+		end
+		update_index
 	end
 end
 
@@ -149,7 +195,7 @@ class ExampleSuggest
 			var node = parse_code(code)
 			if node == null then continue
 
-			var examples = match_examples(node)
+			var examples = code_index.match_node(node)
 			print_suggestions(code, examples)
 		end
 		if i > 0 then
@@ -177,10 +223,6 @@ class ExampleSuggest
 		return node
 	end
 
-	fun match_examples(node: ANode): Array[vsm::IndexMatch[CodeDocument]] do
-		return code_index.find_node(node)
-	end
-
 	fun print_suggestions(code: String, results: Array[vsm::IndexMatch[CodeDocument]]) do
 		# var mbuilder = toolcontext.modelbuilder
 		# var model = mbuilder.model
@@ -203,6 +245,35 @@ class ExampleSuggest
 			# print ""
 			i += 1
 		end
+	end
+end
+
+class SuggestVisitor
+	super MdVisitor
+
+	var mdoc_index: CommentsIndex
+
+	var mpackage: MPackage
+
+	redef fun visit(node) do
+		if node isa MdListBlock or node isa MdParagraph then
+			var v = new RawTextVisitor
+			var text = v.render(node)
+			print text
+			print ""
+			var matches = mdoc_index.match_string(text)
+			var i = 0
+			for match in matches do
+				if not match.document.mentity.full_name.has_prefix("{mpackage.full_name}::") then continue
+				if match.document.mentity.full_name.has_suffix("=") then continue
+				if i >= 3 then break
+				print " * {match}"
+				i += 1
+			end
+			print ""
+			return
+		end
+		node.visit_all(self)
 	end
 end
 
