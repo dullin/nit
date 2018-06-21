@@ -42,14 +42,14 @@ private class NitReadmePhase
 		var model = mbuilder.model
 
 		# prepare markdown parser
-		var cmd_parser = new CommandParser(model, mmodules.first, mbuilder)
+		# var cmd_parser = new CommandParser(model, mmodules.first, mbuilder)
 		var md_parser = new MdParser
 		md_parser.github_mode = true
 		md_parser.wikilinks_mode = true
 		md_parser.post_processors.add new MDocProcessSynopsis
-		md_parser.post_processors.add new MDocProcessCodes
-		md_parser.post_processors.add new MDocProcessCommands(cmd_parser, toolcontext)
-		md_parser.post_processors.add new MDocProcessSummary
+		md_parser.post_processors.add new MDocProcessMEntityLinks(model, mainmodule)
+		# md_parser.post_processors.add new MDocProcessCommands(cmd_parser, toolcontext)
+		# md_parser.post_processors.add new MDocProcessSummary
 		model.mdoc_parser = md_parser
 
 		# create index
@@ -77,7 +77,12 @@ private class NitReadmePhase
 			end
 
 			# suggest_examples_replacement(index, mpackage)
-			suggest_cards(mdoc_index, mpackage)
+			# suggest_cards(mdoc_index, mpackage)
+			var tmp = new MDocAligner(model, null)
+			var mdoc = mpackage.mdoc_or_fallback
+			if mdoc != null then
+				tmp.align(mdoc)
+			end
 		end
 	end
 
@@ -274,6 +279,70 @@ class SuggestVisitor
 			return
 		end
 		node.visit_all(self)
+	end
+end
+
+class MDocAligner
+	super MdVisitor
+
+	var model: Model is writable
+
+	var filter: nullable ModelFilter = null is optional, writable
+
+	private var references_visitor = new MDocReferencesVisitor is lazy
+
+	fun align(mdoc: MDoc) do
+		enter_visit mdoc.mdoc_document
+	end
+
+	redef fun visit(node) do
+		if node isa MdListItem or node isa MdParagraph then
+			var mentities = references_visitor.collect_mentities(node)
+
+			if references_visitor.spans > 0 then
+				var renderer = new MarkdownRenderer
+				var md = renderer.render(node)
+				print md
+				print ""
+				print "{references_visitor.spans} spans"
+				for mentity in mentities do
+					print "-- {mentity.full_name}"
+				end
+				print ""
+				print ""
+			end
+		end
+		node.visit_all(self)
+	end
+end
+
+class MDocReferencesVisitor
+	super MdVisitor
+
+	var spans = 0
+
+	private var mentities: Array[MEntity] is noinit
+
+	fun collect_mentities(node: MdNode): Array[MEntity] do
+		spans = 0
+		mentities = new Array[MEntity]
+		enter_visit(node)
+		return mentities
+	end
+
+	redef fun visit(node) do node.extract_references(self)
+end
+
+redef class MdNode
+	private fun extract_references(v: MDocReferencesVisitor) do visit_all(v)
+end
+
+redef class MdCode
+	redef fun extract_references(v) do
+		v.spans += 1
+		var mentity = self.nit_mentity
+		if mentity == null then return
+		v.mentities.add mentity
 	end
 end
 

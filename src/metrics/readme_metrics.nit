@@ -18,8 +18,7 @@
 module readme_metrics
 
 import metrics_base
-import model::model_collect
-import markdown
+import commands_docdown
 
 redef class ToolContext
 
@@ -37,6 +36,16 @@ private class ReadmeMetricsPhase
 		print toolcontext.format_h1("\n# ReadMe metrics")
 		var model = toolcontext.modelbuilder.model
 
+		# var cmd_parser = new CommandParser(model, mmodules.first, mbuilder)
+		var md_parser = new MdParser
+		md_parser.github_mode = true
+		md_parser.wikilinks_mode = true
+		md_parser.post_processors.add new MDocProcessSynopsis
+		md_parser.post_processors.add new MDocProcessCodes
+		# md_parser.post_processors.add new MDocProcessCommands(cmd_parser, toolcontext)
+		model.mdoc_parser = md_parser
+
+
 		var metrics = new ReadmeMetrics
 		metrics.collect_metrics(model.mpackages)
 		metrics.to_console(toolcontext)
@@ -46,9 +55,9 @@ private class ReadmeMetricsPhase
 	end
 end
 
-# A Markdown decorator that collects metrics about a Readme content
-class MetricsDecorator
-	super HTMLDecorator
+# A Markdown visitor that collects metrics about a Readme content
+class MDocMetricsVisitor
+	super MdVisitor
 
 	# Count blocks
 	var block_counter = new Counter[String]
@@ -56,59 +65,26 @@ class MetricsDecorator
 	# Count sections
 	var headline_counter = new Counter[Int]
 
-	redef fun add_ruler(v, block) do
-		block_counter.inc block.class_name
-		super
+	# Collect metrics about the mpackage's mdoc
+	fun collect_metrics(mpackage: MPackage) do
+		var mdoc = mpackage.mdoc_or_fallback
+		if mdoc == null then return
+		enter_visit(mdoc.mdoc_document)
 	end
 
-	redef fun add_headline(v, block) do
-		block_counter.inc block.class_name
-		headline_counter.inc block.depth
-		super
-	end
+	redef fun visit(node) do node.collect_metrics(self)
+end
 
-	redef fun add_paragraph(v, block) do
-		block_counter.inc block.class_name
-		super
+redef class MdNode
+	private fun collect_metrics(v: MDocMetricsVisitor) do
+		v.block_counter.inc self.class_name
+		visit_all(v)
 	end
+end
 
-	redef fun add_code(v, block) do
-		block_counter.inc block.class_name
-		super
-	end
-
-	redef fun add_blockquote(v, block) do
-		block_counter.inc block.class_name
-		super
-	end
-
-	redef fun add_unorderedlist(v, block) do
-		block_counter.inc block.class_name
-		super
-	end
-
-	redef fun add_orderedlist(v, block) do
-		block_counter.inc block.class_name
-		super
-	end
-
-	redef fun add_listitem(v, block) do
-		block_counter.inc block.class_name
-		super
-	end
-
-	redef fun add_image(v, link, name, comment) do
-		block_counter.inc "Image"
-		super
-	end
-
-	redef fun add_link(v, link, name, comment) do
-		block_counter.inc "Link"
-		super
-	end
-
-	redef fun add_span_code(v, text, from, to) do
-		block_counter.inc "SpanCode"
+redef class MdHeading
+	redef fun collect_metrics(v) do
+		v.headline_counter.inc level
 		super
 	end
 end
@@ -206,6 +182,7 @@ class ReadmeMetric
 		self["has_readme"] = 1
 		self["md_lines"] = md_lines.length
 
+		md_visitor.collect_metrics(mpackage)
 		collect_sections_metrics
 		collect_blocs_metrics
 	end
@@ -243,27 +220,21 @@ class ReadmeMetric
 		return path.to_path.read_lines
 	end
 
-	# Markdown decorator used to visit Markdown content
-	var md_decorator: MetricsDecorator is lazy do
-		var md_decorator = new MetricsDecorator
-		var md_proc = new MarkdownProcessor
-		md_proc.decorator = md_decorator
-		md_proc.process(md_lines.join("\n"))
-		return md_decorator
-	end
+	# Markdown visitor used to collect MDoc metrics
+	var md_visitor = new MDocMetricsVisitor is lazy
 
 	# Collect metrics related to section headings
 	fun collect_sections_metrics do
-		self["nb_section"] = md_decorator.headline_counter.sum
-		for lvl, count in md_decorator.headline_counter do
+		self["nb_section"] = md_visitor.headline_counter.sum
+		for lvl, count in md_visitor.headline_counter do
 			self["HL {lvl}"] = count
 		end
 	end
 
 	# Collect metrics related to Markdown blocks
 	fun collect_blocs_metrics do
-		self["md_blocks"] = md_decorator.block_counter.sum
-		for block, count in md_decorator.block_counter do
+		self["md_blocks"] = md_visitor.block_counter.sum
+		for block, count in md_visitor.block_counter do
 			self[block] = count
 		end
 	end
