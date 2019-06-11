@@ -2091,6 +2091,18 @@ class MSignature
 		var res = new MSignature(params, ret)
 		return res
 	end
+
+	fun is_subtype_multi(mmodule: MModule, sup: MSignature):Bool
+	do
+		if self.arity != sup.arity then return false
+
+		for i in [0..arity[ do
+			if not mparameters[i].mtype.is_subtype(mmodule, null, sup.mparameters[i].mtype) then return false
+		end	
+
+		return true
+
+	end
 end
 
 # A parameter in a signature
@@ -2530,9 +2542,17 @@ abstract class MPropDef
 		mclassdef.mpropdefs.add(self)
 		mproperty.mpropdefs.add(self)
 		mclassdef.mpropdefs_by_property[mproperty] = self
+		# If the proprety was introduced in this class
 		if mproperty.intro_mclassdef == mclassdef then
-			assert not isset mproperty._intro
-			mproperty.intro = self
+			## TODO MULTI checks if _intro is set, can we check is multi tag is set?
+			# Keep least specialised as intro?
+			#assert not isset mproperty._intro
+
+			# If the propdef is already introduced, check if we might have
+			# a multi dispatch method.
+
+			# Removed the assert cause let's fail later and catch it later.
+			if not isset mproperty._intro then mproperty.intro = self
 		end
 		self.to_s = "{mclassdef}${mproperty}"
 	end

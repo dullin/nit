@@ -635,6 +635,8 @@ redef class APropdef
 	do
 		if mclassdef.mprop2npropdef.has_key(mprop) then
 			modelbuilder.error(self, "Error: a property `{mprop}` is already defined in class `{mclassdef.mclass}` at line {mclassdef.mprop2npropdef[mprop].location.line_start}.")
+			## TODO MULTI The property might exists but it's okay if we have a base object declared
+			## Do we have a tag for multi dispatch propr. Where to set it
 			return false
 		end
 		if mprop isa MMethod and mprop.is_root_init then return true
@@ -857,7 +859,11 @@ redef class AMethPropdef
 			end
 		else
 			if mprop.is_broken then return
-			if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then return
+			if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then
+				## TODO MULTI 
+				# This check fails since check_redef_keyword checks if the prop already exists in the classe
+				return
+			end
 			check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
 		end
 

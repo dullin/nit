@@ -114,6 +114,9 @@ private class TypeVisitor
 			var u = anchor_to(sub)
 			self.modelbuilder.error(node, "Type Error: expected `{sup}`, got `{sub}: {u}`.")
 		else
+			## TODO MULTI Errors because the redef takes priority and not a subtype
+			# Will fix itself when least specialised is intro?
+			# This error happens on a call only
 			self.modelbuilder.error(node, "Type Error: expected `{sup}`, got `{sub}`.")
 		end
 		return null
@@ -394,6 +397,7 @@ private class TypeVisitor
 		else if propdefs.length == 1 then
 			mpropdef = propdefs.first
 		else
+			## TODO MULTI No needs for warning when the prop is a multi dispatch
 			self.modelbuilder.warning(node, "property-conflict", "Warning: conflicting property definitions for property `{mproperty.name}` in `{unsafe_type}`: {propdefs.join(" ")}")
 			mpropdef = mproperty.intro
 		end
