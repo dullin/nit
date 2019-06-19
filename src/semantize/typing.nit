@@ -398,7 +398,7 @@ private class TypeVisitor
 			mpropdef = propdefs.first
 		else
 			## TODO MULTI No needs for warning when the prop is a multi dispatch
-			self.modelbuilder.warning(node, "property-conflict", "Warning: conflicting property definitions for property `{mproperty.name}` in `{unsafe_type}`: {propdefs.join(" ")}")
+			#self.modelbuilder.warning(node, "property-conflict", "Warning: conflicting property definitions for property `{name}` in `{unsafe_type}`: {propdefs.join(" ")}")
 			mpropdef = mproperty.intro
 		end
 

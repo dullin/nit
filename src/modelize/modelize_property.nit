@@ -633,10 +633,9 @@ redef class APropdef
 
 	private fun check_redef_keyword(modelbuilder: ModelBuilder, mclassdef: MClassDef, kwredef: nullable Token, need_redef: Bool, mprop: MProperty): Bool
 	do
-		if mclassdef.mprop2npropdef.has_key(mprop) then
+		## DONE MULTI If we have a method, we can have the same name twice. Will check later for signatures
+		if not mprop isa MMethod and mclassdef.mprop2npropdef.has_key(mprop) then
 			modelbuilder.error(self, "Error: a property `{mprop}` is already defined in class `{mclassdef.mclass}` at line {mclassdef.mprop2npropdef[mprop].location.line_start}.")
-			## TODO MULTI The property might exists but it's okay if we have a base object declared
-			## Do we have a tag for multi dispatch propr. Where to set it
 			return false
 		end
 		if mprop isa MMethod and mprop.is_root_init then return true
@@ -861,7 +860,7 @@ redef class AMethPropdef
 			if mprop.is_broken then return
 			if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then
 				## TODO MULTI 
-				# This check fails since check_redef_keyword checks if the prop already exists in the classe
+				# This check fails since check_redef_keyword checks if the prop already exists in the class
 				return
 			end
 			check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
@@ -1053,13 +1052,18 @@ redef class AMethPropdef
 				return
 			end
 
+			## TODO MULTI Here we can check for subtyping of params
 			if mysignature.arity > 0 then
 				# Check parameters types
 				for i in [0..mysignature.arity[ do
 					var myt = mysignature.mparameters[i].mtype
 					var prt = msignature.mparameters[i].mtype
 					var node = nsig.n_params[i]
-					if not modelbuilder.check_sametype(node, mmodule, mclassdef.bound_mtype, myt, prt) then
+					var same_type = modelbuilder.check_sametype(node, mmodule, mclassdef.bound_mtype, myt, prt)
+					var sub_type = myt.is_subtype(mmodule, mclassdef.bound_mtype, prt)
+					if sub_type and not same_type then
+						modelbuilder.warning(node,"multi-select", "Mutliple selection method incoming.")
+					else if not same_type then
 						modelbuilder.error(node, "Redef Error: expected `{prt}` for parameter `{mysignature.mparameters[i].name}'; got `{myt}`.")
 						mpropdef.msignature = null
 						mpropdef.is_broken = true

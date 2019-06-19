@@ -183,6 +183,10 @@ redef class MModule
 		return new MPropDefSorter(self)
 	end
 
+	private var mmethoddef_sorter: MMethodDefSorter is lazy do
+		return new MMethodDefSorter(self)
+	end
+
 	# Does the current module has a given class `mclass`?
 	# Return true if the mmodule introduces, refines or imports a class.
 	# Visibility is not considered.
@@ -257,6 +261,11 @@ redef class MModule
 	fun linearize_mpropdefs(mpropdefs: Array[MPropDef])
 	do
 		mpropdef_sorter.sort(mpropdefs)
+	end
+
+	fun linearize_mmethoddefs(mmethoddefs: Array[MMethodDef])
+	do
+		mmethoddef_sorter.sort(mmethoddefs)
 	end
 
 	private var flatten_mclass_hierarchy_cache: nullable POSet[MClass] = null
@@ -406,6 +415,37 @@ private class MPropDefSorter
 		var a = pa.mclassdef
 		var b = pb.mclassdef
 		return mmodule.mclassdef_sorter.compare(a, b)
+	end
+end
+
+private class MMethodDefSorter
+	super Comparator
+	redef type COMPARED: MMethodDef
+	var mmodule: MModule
+
+	redef fun compare(ma, mb)
+	do
+		# Check the class first
+		var cmpProp = mmodule.mpropdef_sorter.compare(ma, mb)
+		if not cmpProp != 0 then return cmpProp
+		
+		for i in [0..ma.msignature.mparameters.length[ do
+			var pa_type = ma.msignature.mparameters[i].mtype
+			var pb_type = mb.msignature.mparameters[i].mtype
+			
+			var pa_subtype_of_pb = pa_type.is_subtype(mmodule, null, pb_type)
+			var pb_subtype_of_pa = pb_type.is_subtype(mmodule, null, pa_type)
+
+			if pa_subtype_of_pb and pb_subtype_of_pa then
+				continue
+			else if pa_subtype_of_pb then
+				return -1
+			else if pb_subtype_of_pa then
+				return 1
+			end
+		end
+
+		return 0
 	end
 end
 
@@ -2475,6 +2515,34 @@ class MMethod
 
 	# Is this method a getter or a setter?
 	fun is_accessor: Bool do return is_getter or is_setter
+
+	# Returns the first valid multiselection call
+	fun lookup_first_multi_definition(mmodule: MModule, args: Array[MType]) : MPROPDEF
+	do
+		if args.length == 1 then return lookup_first_definition(mmodule, args[0])
+		var candidates = lookup_all_definitions(mmodule, args[0])
+		mmodule.linearize_mmethoddefs(candidates)
+		candidates = candidates.reversed
+		## Selects the first valid candidate
+		for i in [0..candidates.length] do
+			var valid = true
+			var candidate_parameters = candidates[i].msignature.mparameters
+			for j in [1..args.length[ do
+				var arg_type = args[j]
+				var candidate_param_type = candidate_parameters[j-1].mtype
+				if not arg_type.is_subtype(mmodule, null, candidate_param_type) then
+					valid = false
+					break
+				end
+			end
+
+			if valid then return candidates[i]
+
+		end
+		# We should never not have a valid candidate
+		abort
+
+	end
 end
 
 # A global attribute

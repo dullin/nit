@@ -627,7 +627,14 @@ class NaiveInterpreter
 		var mtype = recv.mtype
 		var ret = send_commons(mproperty, args, mtype)
 		if ret != null then return ret
-		var propdef = mproperty.lookup_first_definition(self.mainmodule, mtype)
+		## MULTI TODO have a new methood lookup_first_multi_definition
+		# var propdef = mproperty.lookup_first_definition(self.mainmodule, mtype)
+		var mtypes = new Array[MType]
+		for i in [0..args.length[ do
+			mtypes.push(args[i].mtype)
+		end
+		print mproperty.to_s
+		var propdef = mproperty.lookup_first_multi_definition(self.mainmodule, mtypes)
 		return self.call(propdef, args)
 	end
 
