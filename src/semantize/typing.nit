@@ -390,6 +390,9 @@ private class TypeVisitor
 
 		var propdefs = mproperty.lookup_definitions(self.mmodule, unsafe_type)
 		var mpropdef
+		print mproperty
+		print mproperty.mpropdefs.length
+		print propdefs.length
 		if propdefs.length == 0 then
 			self.modelbuilder.error(node, "Type Error: no definition found for property `{mproperty.name}` in `{unsafe_type}`.")
 			abort
@@ -400,6 +403,8 @@ private class TypeVisitor
 			## TODO MULTI No needs for warning when the prop is a multi dispatch
 			#self.modelbuilder.warning(node, "property-conflict", "Warning: conflicting property definitions for property `{name}` in `{unsafe_type}`: {propdefs.join(" ")}")
 			mpropdef = mproperty.intro
+			print "Intro is"
+			print mpropdef.msignature.as(MSignature)
 		end
 
 		return build_callsite_by_propdef(node, recvtype, mpropdef, recv_is_self)
@@ -901,7 +906,9 @@ redef class AMethPropdef
 		self.selfvariable = v.selfvariable
 
 		var mmethoddef = self.mpropdef.as(not null)
-		var msignature = mmethoddef.msignature
+		# TODO MULTI Use the intro definition for the signature
+		# non multi will have the same but we need the generic version
+		var msignature = mmethoddef.mproperty.intro.msignature
 		if msignature == null then return # skip error
 		for i in [0..msignature.arity[ do
 			var mtype = msignature.mparameters[i].mtype

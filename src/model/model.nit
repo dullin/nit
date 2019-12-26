@@ -2292,6 +2292,8 @@ abstract class MProperty
 
 		# Here we have two strategies: iterate propdefs or iterate classdefs.
 		var mpropdefs = self.mpropdefs
+		print "propdefs"
+		print mpropdefs.length
 		if mpropdefs.length <= 1 or mpropdefs.length < mtype.collect_mclassdefs(mmodule).length then
 			# Iterate on all definitions of `self`, keep only those inherited by `mtype` in `mmodule`
 			for mpropdef in mpropdefs do
@@ -2309,6 +2311,9 @@ abstract class MProperty
 				if p != null then candidates.add p
 			end
 		end
+
+		print "Candidates"
+		print candidates.length
 
 		# Fast track for only one candidate
 		if candidates.length <= 1 then
@@ -2522,20 +2527,21 @@ class MMethod
 		if args.length == 1 then return lookup_first_definition(mmodule, args[0])
 		var candidates = lookup_all_definitions(mmodule, args[0])
 		mmodule.linearize_mmethoddefs(candidates)
-		candidates = candidates.reversed
+		# TODO MULTI check if the sort is reversed
+		#candidates = candidates.reversed
 		## Selects the first valid candidate
+		var anchor = args[0]
 		for i in [0..candidates.length] do
 			var valid = true
 			var candidate_parameters = candidates[i].msignature.mparameters
 			for j in [1..args.length[ do
 				var arg_type = args[j]
 				var candidate_param_type = candidate_parameters[j-1].mtype
-				if not arg_type.is_subtype(mmodule, null, candidate_param_type) then
+				if not arg_type.is_subtype(mmodule, anchor.as(MClassType), candidate_param_type) then
 					valid = false
 					break
 				end
 			end
-
 			if valid then return candidates[i]
 
 		end
@@ -2613,6 +2619,7 @@ abstract class MPropDef
 		# If the proprety was introduced in this class
 		if mproperty.intro_mclassdef == mclassdef then
 			## TODO MULTI checks if _intro is set, can we check is multi tag is set?
+			## TODO MULTI This is MPropDef, are we breaking having the same fields twice?
 			# Keep least specialised as intro?
 			#assert not isset mproperty._intro
 

@@ -633,7 +633,7 @@ class NaiveInterpreter
 		for i in [0..args.length[ do
 			mtypes.push(args[i].mtype)
 		end
-		print mproperty.to_s
+		# print mproperty.to_s
 		var propdef = mproperty.lookup_first_multi_definition(self.mainmodule, mtypes)
 		return self.call(propdef, args)
 	end
