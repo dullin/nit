@@ -2292,8 +2292,8 @@ abstract class MProperty
 
 		# Here we have two strategies: iterate propdefs or iterate classdefs.
 		var mpropdefs = self.mpropdefs
-		print "propdefs"
-		print mpropdefs.length
+		#print "propdefs"
+		#print mpropdefs.length
 		if mpropdefs.length <= 1 or mpropdefs.length < mtype.collect_mclassdefs(mmodule).length then
 			# Iterate on all definitions of `self`, keep only those inherited by `mtype` in `mmodule`
 			for mpropdef in mpropdefs do
@@ -2312,8 +2312,8 @@ abstract class MProperty
 			end
 		end
 
-		print "Candidates"
-		print candidates.length
+		#print "Candidates"
+		#print candidates.length
 
 		# Fast track for only one candidate
 		if candidates.length <= 1 then

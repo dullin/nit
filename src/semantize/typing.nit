@@ -390,9 +390,9 @@ private class TypeVisitor
 
 		var propdefs = mproperty.lookup_definitions(self.mmodule, unsafe_type)
 		var mpropdef
-		print mproperty
-		print mproperty.mpropdefs.length
-		print propdefs.length
+		#print mproperty
+		#print mproperty.mpropdefs.length
+		#print propdefs.length
 		if propdefs.length == 0 then
 			self.modelbuilder.error(node, "Type Error: no definition found for property `{mproperty.name}` in `{unsafe_type}`.")
 			abort
@@ -403,8 +403,8 @@ private class TypeVisitor
 			## TODO MULTI No needs for warning when the prop is a multi dispatch
 			#self.modelbuilder.warning(node, "property-conflict", "Warning: conflicting property definitions for property `{name}` in `{unsafe_type}`: {propdefs.join(" ")}")
 			mpropdef = mproperty.intro
-			print "Intro is"
-			print mpropdef.msignature.as(MSignature)
+			#print "Intro is"
+			#print mpropdef.msignature.as(MSignature)
 		end
 
 		return build_callsite_by_propdef(node, recvtype, mpropdef, recv_is_self)
