@@ -129,6 +129,7 @@ redef class ToolContext
 				for nclassdef in nmodule.n_classdefs do
 					assert phase.toolcontext == self
 					phase.process_nclassdef(nclassdef)
+					if nclassdef isa AStdClassdef then phase.process_nclassstddef(nclassdef)
 					if not semantize_is_lazy then for npropdef in nclassdef.n_propdefs do
 						assert phase.toolcontext == self
 						phase_process_npropdef(phase, npropdef)
@@ -245,6 +246,11 @@ abstract class Phase
 	# Note that the order of the visit is the one of the file
 	# @toimplement
 	fun process_nclassdef(nclassdef: AClassdef) do end
+
+	# Specific actions to execute on the tree of a standard class definition
+	# Note that the order of the visit is the one of the file
+	# @toimplement
+	fun process_nclassstddef(nstdclassdef: AStdClassdef) do end
 
 	# Specific actions to execute on the tree of a property
 	# Note that the order of the visit is the one of the file
