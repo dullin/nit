@@ -16,12 +16,12 @@ class MyClass
         print("DEBUG5 - " + c.to_s) 
     end
 
-    fun toto4(a:A, c: Int) do 
+    fun toto3(a:A, c: Int) do 
         print("DEBUG6")
         print("DEBUG7 - " + c.to_s)
     end
 
-    fun toto4(b:B, c: Int) do 
+    fun toto3(b:B, c: Int) do 
     	print("DEBUG8-0")
     end
 
@@ -39,5 +39,5 @@ var a = new A
 var b = new B
 print(a isa A)
 print("MMM12")
-obj.toto4(a, 3)
-obj.toto4(b, 4)
+obj.toto3(a, 3)
+obj.toto3(b, 4)

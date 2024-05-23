@@ -95,7 +95,7 @@ redef class AMethPropdef
         if self.mpropdef.mclassdef.to_s == "phasing$MyClass" then 
             print "MMM13 - Visiting MethPropdef " + self.mpropdef.mclassdef.to_s + " " + self.mpropdef.name
             #print isset mpropdef.mproperty._multim_intro 
-	    if self.mpropdef.name == "toto3X" and 
+	    if self.mpropdef.name == "toto3" and 
 	    self.mpropdef == self.mpropdef.mproperty.multim_intro 
 	    then 
                 #self.print_tree
