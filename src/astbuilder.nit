@@ -22,6 +22,8 @@ intrude import semantize::scope
 intrude import modelbuilder_base
 intrude import modelize_property
 
+import astprinter
+
 # General factory to build semantic nodes in the AST of expressions
 class ASTBuilder
 	# The module used as reference for the building
@@ -140,6 +142,12 @@ class ASTBuilder
 	fun make_and(right_expr: AExpr, left_expr: AExpr): AAndExpr
 	do
 		return new AAndExpr.make(right_expr,left_expr)
+	end
+
+	# Make a new isa with an expr and a type
+	fun make_isa(expr: AExpr, mtype: MType): AIsaExpr
+	do
+		return new AIsaExpr.make(expr, mtype)
 	end
 
 	# Make a new parenthesis expr
@@ -400,6 +408,14 @@ redef class AAndExpr
 	end
 end
 
+redef class AIsaExpr
+	private init make(n_expr: AExpr, mtype: MType)
+	do
+		self.init_aisaexpr(n_expr, new TKwisa, new AType.make(mtype))
+		self.cast_type = mtype
+	end
+end
+
 redef class AMethPropdef
 	private init make(n_visibility: nullable AVisibility,
 					tk_redef: nullable TKwredef,
@@ -631,13 +647,12 @@ end
 redef class ACallExpr
 	private init make(recv: AExpr, callsite: nullable CallSite, args: nullable Array[AExpr])
 	do
-		self._n_expr = recv
-		_n_args = new AListExprs
-		_n_qid = new AQid
+		init_acallexpr(recv, new AQid, new AListExprs)
 		_n_qid.n_id = new TId
 		_n_qid.n_id.text = callsite.mproperty.name
 		if args != null then
 			self.n_args.n_exprs.add_all(args)
+			for a in args do a.parent = self.n_args
 		end
 
 		if callsite != null then
@@ -924,17 +939,21 @@ redef class ANode
 			else if parent != path_parent then
 				self.parent = path_parent
 				if v.seen.has(self) then
-					debug "DUPLICATE (NOTATREE): already seen node with parent {parent} now with {path_parent}."
+					debug "DUPLICATE (NOTATREE): Node - {self} already seen node with parent {parent} now with {path_parent}."
+					self.parent.print_tree
 				else
 					v.seen.add(self)
-					debug "PARENT: expected parent: {path_parent}, got {parent}"
+					debug "PARENT: Node - {self} has expected parent: {path_parent}, got {parent}"
+					self.parent.print_tree
 				end
 			end
 		end
 
 		if not isset _location then
 			#debug "LOCATION: unlocated node {v.path.join(", ")}"
+			#print "MMM1 - Before the parent"
 			_location = self.parent.location
+			#print "MMM2 - After"
 		end
 
 		path.unshift(self)

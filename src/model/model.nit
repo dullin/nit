@@ -782,6 +782,7 @@ class MClassDef
 	var default_init: nullable MMethodDef = null is writable
 
 	# All property introductions and redefinitions (not inheritance) in `self` by its associated property.
+	# TODO MULTI Do we really need this? Expect 1 propdef for everyclass
 	var mpropdefs_by_property = new HashMap[MProperty, MPropDef]
 
 	# Return the direct parent mtype of `self`
@@ -2163,6 +2164,12 @@ abstract class MProperty
 		return intro.mdoc
 	end
 
+	# TODO MULTI : BAD PLACE FOR THIS, SHOULD BE IN MMETHOD
+	var multim = false
+	# TODO MUTLI : Will intro be changed in refinements?
+	var multim_intro: MPROPDEF is noinit
+	var multim_counter = 0
+
 	# The canonical name of the property.
 	#
 	# It is currently the short-`name` prefixed by the short-name of the class and the full-name of the module.
@@ -2240,12 +2247,13 @@ abstract class MProperty
 
 		# Here we have two strategies: iterate propdefs or iterate classdefs.
 		var mpropdefs = self.mpropdefs
-		if mpropdefs.length <= 1 or mpropdefs.length < mtype.collect_mclassdefs(mmodule).length then
+		if mpropdefs.length <= 1 or mpropdefs.length < mtype.collect_mclassdefs(mmodule).length or self.multim then
 			# Iterate on all definitions of `self`, keep only those inherited by `mtype` in `mmodule`
 			for mpropdef in mpropdefs do
 				# If the definition is not imported by the module, then skip
 				if not mmodule.in_importation <= mpropdef.mclassdef.mmodule then continue
 				# If the definition is not inherited by the type, then skip
+				#if mpropdef isa MMethodDef then print self.name + " checking candidates " + mpropdef.as(MMethodDef).msignature.to_s
 				if not mtype.is_subtype(mmodule, null, mpropdef.mclassdef.bound_mtype) then continue
 				# Else, we keep it
 				candidates.add(mpropdef)
@@ -2257,6 +2265,8 @@ abstract class MProperty
 				if p != null then candidates.add p
 			end
 		end
+
+		if self.multim then print "MMM50n - " + self.name + " we in here " + candidates.length.to_s + " " + self.mpropdefs.length.to_s
 
 		# Fast track for only one candidate
 		if candidates.length <= 1 then
@@ -2362,8 +2372,17 @@ abstract class MProperty
 	do
 		mtype = mtype.undecorate
 
+		if self.multim then print "MULTIM CONFIRMED"
+		if self.multim then
+			var mcandidates = new Array[MPROPDEF]
+			mcandidates.add(self.multim_intro)
+			return mcandidates
+		end
+
 		var cache = self.lookup_all_definitions_cache[mmodule, mtype]
 		if cache != null then return cache
+
+		if self.multim then print "MULTIM CONFIRMED after"
 
 		assert not mtype.need_anchor
 		assert mtype.has_mproperty(mmodule, self)
@@ -2521,6 +2540,8 @@ abstract class MPropDef
 	# The associated global property
 	var mproperty: MPROPERTY
 
+	var multim_number = 0
+
 	redef var location
 
 	redef fun visibility do return mproperty.visibility
@@ -2531,8 +2552,17 @@ abstract class MPropDef
 		mproperty.mpropdefs.add(self)
 		mclassdef.mpropdefs_by_property[mproperty] = self
 		if mproperty.intro_mclassdef == mclassdef then
-			assert not isset mproperty._intro
-			mproperty.intro = self
+			# TODO MULTI : intro is available for multimethods
+			# do we need a method init to have it check itself?
+			# assert not isset mproperty._intro
+			if not isset mproperty._intro then 
+				mproperty.intro = self
+			else
+				mproperty.multim = true
+				mproperty.multim_intro = mproperty.intro
+				mproperty.multim_counter = mproperty.multim_counter + 1
+				self.multim_number = mproperty.multim_counter
+			end
 		end
 		self.to_s = "{mclassdef}${mproperty}"
 	end
@@ -2601,6 +2631,10 @@ abstract class MPropDef
 			res.append mproperty.intro_mclassdef.name.to_cmangle
 			res.append "__"
 			res.append mproperty.name.to_cmangle
+		end
+		if mproperty.multim then
+			res.append "___multi"
+			res.append multim_number.to_s
 		end
 		return res.to_s
 	end

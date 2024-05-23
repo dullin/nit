@@ -324,6 +324,10 @@ class ANodes[E: ANode]
 		for i in [0..length[ do
 			if self[i] == old_child then
 				if new_child != null then
+					if new_child isa E then
+						#print "MMM6"
+						#print new_child
+					end
 					assert new_child isa E
 					self[i] = new_child
 					new_child.parent = parent

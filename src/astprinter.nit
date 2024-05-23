@@ -116,41 +116,44 @@ redef class ANewExpr
 end
 
 redef class ASendExpr
-	redef fun accept_printer(v)
-	do
-		v.enter_visit(n_expr)
-		v.write(".{callsite.mproperty.name}")
-		if not raw_arguments.is_empty then
-			v.write("(")
-			v.indent
-			var is_first = true
-			for a in raw_arguments do
-				if is_first then is_first = false else v.write(",")
-				v.enter_visit(a)
-			end
-			v.unindent
-			v.write(")")
-		end
-	end
+#	redef fun accept_printer(v)
+#	do
+#		v.write("ASendExpr - ")
+#		v.write(self.to_s)
+#		v.enter_visit(n_expr)
+#		v.write(".{callsite.mproperty.name}")
+#		if not raw_arguments.is_empty then
+#			v.write("(")
+#			v.indent
+#			var is_first = true
+#			for a in raw_arguments do
+#				if is_first then is_first = false else v.write(",")
+#				v.enter_visit(a)
+#			end
+#			v.unindent
+#			v.write(")")
+#		end
+#	end
 end
 
 redef class AVarExpr
-	redef fun accept_printer(v)
-	do
-		var name = variable.name
-		if name == "" then name = "t{variable.object_id}"
-		v.write(name)
-	end
+#	redef fun accept_printer(v)
+#	do
+#		v.write("AVarExpr")
+#		var name = variable.name
+#		if name == "" then name = "t{variable.object_id}"
+#		v.write(name)
+#	end
 end
 
 redef class AVarAssignExpr
-	redef fun accept_printer(v)
-	do
-		var name = variable.name
-		if name == "" then name = "t{variable.object_id}"
-		v.write("{name} = ")
-		v.indent
-		v.enter_visit(n_value)
-		v.unindent
-	end
+#	redef fun accept_printer(v)
+#	do
+#		var name = variable.name
+#		if name == "" then name = "t{variable.object_id}"
+#		v.write("{name} = ")
+#		v.indent
+#		v.enter_visit(n_value)
+#		v.unindent
+#	end
 end

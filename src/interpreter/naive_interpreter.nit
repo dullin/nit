@@ -497,6 +497,7 @@ class NaiveInterpreter
 		if msignature.arity == 0 then return res
 
 		if map == null then
+			print "MMM3 - Map is null {args.length.to_s} {msignature.arity.to_s}"
 			assert args.length == msignature.arity else debug("Expected {msignature.arity} args, got {args.length}")
 			var rest_args = aexprs_to_instances(args.iterator)
 			if rest_args == null then return null

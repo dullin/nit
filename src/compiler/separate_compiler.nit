@@ -366,15 +366,21 @@ class SeparateCompiler
 				end
 			end
 
-			# Collect all super calls (dead or not)
+			# Collect all super calls (dead or not) and multimethods
 			for mpropdef in cd.mpropdefs do
 				if not mpropdef isa MMethodDef then continue
+				if mclass.to_s == "MyClass" then
+					print "MMM8 - " + mpropdef.to_s + mpropdef.multim_number.to_s
+				end
 				if mpropdef.has_supercall then
 					if rta == null then
 						mmethods[mclass].add mpropdef
 					else if not rta.live_super_sends.has(mpropdef) then
 						dead_methods.add mpropdef
 					end
+				end
+				if mpropdef.multim_number > 0 then
+					mmethods[mclass].add mpropdef
 				end
 			end
 		end
@@ -406,14 +412,19 @@ class SeparateCompiler
 			var meth_table = new Array[nullable MPropDef].with_capacity(meth_layout.length)
 			method_tables[mclass] = meth_table
 			for e in meth_layout do
+				if e != null and mclass.to_s == "MyClass" then
+					print("MMM7 - " + e.to_s + " " + mclass.to_s)
+				end
 				if e == null then
 					meth_table.add null
 				else if e isa MMethod then
 					# Standard method call of `e`
 					meth_table.add e.lookup_first_definition(mainmodule, mtype)
-				else if e isa MMethodDef then
+				else if e isa MMethodDef and e.has_supercall then
 					# Super-call in the methoddef `e`
 					meth_table.add e.lookup_next_definition(mainmodule, mtype)
+				else if e isa MMethodDef and e.multim_number > 0 then
+					meth_table.add e
 				else
 					abort
 				end

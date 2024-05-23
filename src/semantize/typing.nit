@@ -116,11 +116,14 @@ private class TypeVisitor
 			return sup
 		end
 		if sup isa MErrorType then return null # Skip error
+		# TODO MULTI: Do we want to check more?
+	
 		if sub.need_anchor then
 			var u = anchor_to(sub)
 			self.modelbuilder.error(node, "Type Error: expected `{sup}`, got `{sub}: {u}`.")
 		else
 			self.modelbuilder.error(node, "Type Error: expected `{sup}`, got `{sub}`.")
+			assert false
 		end
 		return null
 	end
@@ -810,6 +813,10 @@ class CallSite
 
 	private fun check_signature(v: TypeVisitor, node: ANode, args: Array[AExpr]): Bool
 	do
+		if mpropdef.mproperty.multim then 
+			print "MMM0 - MULTIM"
+			return true
+		end
 		var map = v.check_signature(node, args, self.mproperty, self.msignature)
 		signaturemap = map
 		if map == null then is_broken = true
@@ -2011,7 +2018,8 @@ redef class ASendExpr
 
 		var args = compute_raw_arguments
 
-		if not self isa ACallrefExpr then callsite.check_signature(v, node, args)
+		# TODO MULTI : Better check signature?
+		if not self isa ACallrefExpr and not v.mpropdef.mproperty.multim then callsite.check_signature(v, node, args)
 
 		if callsite.mproperty.is_init then
 			var vmpropdef = v.mpropdef

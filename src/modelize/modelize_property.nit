@@ -645,14 +645,15 @@ redef class APropdef
 	private fun check_redef_keyword(modelbuilder: ModelBuilder, mclassdef: MClassDef, kwredef: nullable Token, need_redef: Bool, mprop: MProperty): Bool
 	do
 		if mclassdef.mprop2npropdef.has_key(mprop) then
-			modelbuilder.error(self, "Error: a property `{mprop}` is already defined in class `{mclassdef.mclass}` at line {mclassdef.mprop2npropdef[mprop].location.line_start}.")
-			return false
+			# TODO MULTI - check signature to see if it fits. Do we want to error out on overloading?
+			#modelbuilder.error(self, "Error: a property `{mprop}` is already defined in class `{mclassdef.mclass}` at line {mclassdef.mprop2npropdef[mprop].location.line_start}.")
+			#return false
 		end
 		if mprop isa MMethod and mprop.is_root_init then return true
 		if kwredef == null then
 			if need_redef then
-				modelbuilder.error(self, "Redef Error: `{mclassdef.mclass}::{mprop.name}` is an inherited property. To redefine it, add the `redef` keyword.")
-				return false
+				#modelbuilder.error(self, "Redef Error: `{mclassdef.mclass}::{mprop.name}` is an inherited property. To redefine it, add the `redef` keyword.")
+				#return false
 			end
 
 			# Check for full-name conflicts in the package.
@@ -1064,7 +1065,8 @@ redef class AMethPropdef
 					var myt = mysignature.mparameters[i].mtype
 					var prt = msignature.mparameters[i].mtype
 					var node = nsig.n_params[i]
-					if not modelbuilder.check_sametype(node, mmodule, mclassdef.bound_mtype, myt, prt) then
+					# TODO MULTI check if multi method subtype is ok
+					if not modelbuilder.check_sametype(node, mmodule, mclassdef.bound_mtype, myt, prt) and not mpropdef.mproperty.multim then
 						modelbuilder.error(node, "Redef Error: expected `{prt}` for parameter `{mysignature.mparameters[i].name}'; got `{myt}`.")
 						mpropdef.msignature = null
 						mpropdef.is_broken = true

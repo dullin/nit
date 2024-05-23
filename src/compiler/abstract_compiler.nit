@@ -2014,7 +2014,11 @@ abstract class AbstractCompilerVisitor
 			# Untyped expression.
 			# Might mean dead code or invalid code.
 			# so aborts
-			add_abort("FATAL: bad expression executed.")
+			print "MMM10 - " + nexpr.to_s
+			print nexpr.mtype != null
+			nexpr.print_tree
+			print "---\n" + nexpr.collect_text
+			add_abort("FATALY: bad expression executed.")
 			# and return a placebo result to please the C compiler
 			if mtype == null then mtype = compiler.mainmodule.object_type
 			res = new_var(mtype)
@@ -4324,6 +4328,7 @@ redef class AIsaExpr
 	do
 		var i = v.expr(self.n_expr, null)
 		var cast_type = self.cast_type
+		#print "MMM11 - " + cast_type.to_s
 		if cast_type == null then return null # no-no on broken node
 		return v.type_test(i, cast_type, "isa")
 	end
