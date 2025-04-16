@@ -32,6 +32,11 @@ private class ModelizePropertyPhase
 		for nclassdef in nmodule.n_classdefs do
 			if nclassdef.all_defs == null then continue # skip non principal classdef
 			toolcontext.modelbuilder.build_properties(nclassdef)
+			# MMM12 - Debug text to see the number of propdefs
+			if nclassdef.mclassdef.name == "Simple" then
+				nclassdef.dump_tree(false,false)
+				toolcontext.modelbuilder.toolcontext.info("MMM4 - Simple length {nclassdef.mclassdef.mpropdefs.length} found : {nclassdef.mclassdef.mpropdefs.join(" - ")}", 4)
+			end
 		end
 	end
 end
@@ -748,6 +753,26 @@ redef class ASignature
 		if not res then is_broken = true
 		return res
 	end
+
+	# Builds a string from the types of the parameters (to add to multimethod names)
+	fun types_to_s(modelbuilder: ModelBuilder, mclassdef: MClassDef): String
+	do
+		var params_n = 0
+		var param_types = new Array[MType]
+		for np in self.n_params do
+			params_n += 1
+			var ntype = np.n_type
+			if ntype != null then
+				var mtype = modelbuilder.resolve_mtype_unchecked(mclassdef, ntype, true)
+				if mtype == null then return "" # Skip error
+				for i in [0..params_n-param_types.length[ do
+					param_types.add(mtype)
+				end
+			end
+		end
+
+		return param_types.join("_")
+	end
 end
 
 redef class AParam
@@ -851,6 +876,50 @@ redef class AMethPropdef
 				modelbuilder.advice(self, "useless-init", "Warning: useless empty init in {mclassdef}")
 			end
 		end
+
+		# Test for multimethods
+		if mprop != null then
+			# Do we already have a multimethod?
+			var name_multi:String
+			if mprop isa MMethodMulti then
+				name_multi = name + "_multi_" + self.n_signature.types_to_s(modelbuilder, mclassdef)
+				modelbuilder.toolcontext.info("MMM6 - {mprop.full_name} found new multi variant {name_multi}", 4)
+				# Check to see if we already have the method
+				var mprop_multi = modelbuilder.try_get_mproperty_by_name(name_node, mclassdef, name).as(nullable MMethod)
+
+				# TODO - Set a flag to know we have to add it to the family?
+
+			else if mclassdef.mprop2npropdef.has_key(mprop) and n_kwredef == null then
+				if mprop.is_broken then return
+				modelbuilder.toolcontext.info("MMM7 - {mprop.full_name} Creating multimethod", 4)
+				
+				# Change old MProperty and MPropdefs to fix names
+				# MMM BUG? - can't use first_lookup_definition since we don't have typing done
+				# var old_sign = mprop.lookup_first_definition(mclassdef.mmodule,mclassdef.mclass.mclass_type)
+				var old_mprop_def = mprop.intro
+				var types_string = old_mprop_def.types_string
+				assert types_string != null
+				var old_real_name = name + "_multi_" + types_string
+				modelbuilder.toolcontext.info("MMM8 - Found old method to convert multi with {types_string}", 4)
+				mprop.name = (mprop.name + "_multi_" + types_string)
+				
+				# MMM CURRENT BUG - The new name is not updated on the property
+				modelbuilder.toolcontext.info("MMM10 - Testing new name {mprop.full_name}", 4)
+
+				# Create a MMethodMulti and insert it into the model
+				# Since this is generated, hook to location to the classdefinition
+				# MMM BUG? - How do we handle visibility?
+				var publivisibility = new_property_visibility(modelbuilder, mclassdef, new APublicVisibility)
+				var mpropmulti = new MMethodMulti(mclassdef, name, mclassdef.location, publivisibility)
+				var mpropdefmulti = new MMethodDef(mclassdef, mpropmulti, mclassdef.location)
+				
+				# Setup construction of the MMethod and methods defs for multimethods with new name
+				name = name + "_multi_" + self.n_signature.types_to_s(modelbuilder, mclassdef)
+				mprop = null
+			end
+			
+		end
+
 		if mprop == null then
 			var mvisibility = new_property_visibility(modelbuilder, mclassdef, self.n_visibility)
 			mprop = new MMethod(mclassdef, name, self.location, mvisibility)
@@ -888,6 +957,11 @@ redef class AMethPropdef
 		mclassdef.mprop2npropdef[mprop] = self
 
 		var mpropdef = new MMethodDef(mclassdef, mprop, self.location)
+
+		if self.n_signature != null then
+			mpropdef.types_string = self.n_signature.types_to_s(modelbuilder, mclassdef)
+		end
+
 		if mpropdef.name == "defaultinit" and mclassdef.is_intro then
 			assert mclassdef.default_init == null
 			mpropdef.is_old_style_init = is_old_style_init

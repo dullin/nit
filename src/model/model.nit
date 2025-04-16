@@ -2465,6 +2465,10 @@ class MMethod
 	fun is_accessor: Bool do return is_getter or is_setter
 end
 
+class MMethodMulti
+	super MMethod
+end
+
 # A global attribute
 class MAttribute
 	super MProperty
@@ -2656,6 +2660,10 @@ class MMethodDef
 
 	# The signature attached to the property definition
 	var msignature: nullable MSignature = null is writable
+
+	# MMM BUG - Can we find a better spot for this?
+	# String of value types for multimethods
+	var types_string: nullable String = null is writable
 
 	# List of initialisers to call in root-inits
 	#
