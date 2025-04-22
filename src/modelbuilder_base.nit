@@ -134,8 +134,8 @@ class ModelBuilder
 			return null
 		end
 
-		var cache = self.try_get_mproperty_by_name2_cache[mmodule, mtype, name]
-		if cache != null then return cache
+		#var cache = self.try_get_mproperty_by_name2_cache[mmodule, mtype, name]
+		#if cache != null then return cache
 
 		var res: nullable MProperty = null
 		var ress: nullable Array[MProperty] = null

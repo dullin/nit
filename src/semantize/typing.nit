@@ -2077,6 +2077,7 @@ redef class ASendExpr
 		var callsite = null
 		var unsafe_type = v.anchor_to(recvtype)
 		var mproperty = v.try_get_mproperty_by_name2(node, unsafe_type, name)
+		if mproperty isa MMethodMulti then print "MMM6 - We are calling the multi here"
 		if mproperty == null and nrecv isa AImplicitSelfExpr then
 			# Special fall-back search in `sys` when noting found in the implicit receiver.
 			var sysclass = v.try_get_mclass(node, "Sys")
@@ -2095,8 +2096,13 @@ redef class ASendExpr
 			end
 		end
 		if callsite == null then
+			if mproperty isa MMethodMulti then 
+				print "MMM4 - We are calling the multi here"
+				callsite = v.build_callsite_by_name(node, recvtype, name, nrecv isa ASelfExpr)
+			else
+				callsite = v.build_callsite_by_name(node, recvtype, name, nrecv isa ASelfExpr)
+			end
 			# If still nothing, just exit
-			callsite = v.build_callsite_by_name(node, recvtype, name, nrecv isa ASelfExpr)
 			if callsite == null then return
 		end
 

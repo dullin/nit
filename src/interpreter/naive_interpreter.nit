@@ -556,6 +556,13 @@ class NaiveInterpreter
 		end
 		assert args.length == mpropdef.msignature.arity + 1 else debug("Invalid arity for {mpropdef}. {args.length} arguments given.")
 
+		# If we have a multi method call, don't look into the ast
+		if mpropdef.mproperty isa MMethodMulti then
+			print "MMM10 - {args.to_s}"
+			print "MMM10 - Multi? {mpropdef.mproperty isa MMethodMulti}"
+			
+		end
+
 		# Look for the AST node that implements the property
 		var val = mpropdef.constant_value
 
@@ -641,6 +648,13 @@ class NaiveInterpreter
 	do
 		var recv = args.first
 		var mtype = recv.mtype
+		# If we have a multi method call, don't look into the ast
+		if mproperty isa MMethodMulti then
+			print "MMM11 - {args.to_s}"
+			#var multipropdef = lookup_first_definition(mtype, mproperty.multimethods[0])
+			var multipropdef = lookup_multi_definition(mproperty, args)
+			return self.call(multipropdef, args)
+		end
 		var ret = send_commons(mproperty, args, mtype)
 		if ret != null then return ret
 		var propdef = lookup_first_definition(mtype, mproperty)
@@ -658,6 +672,35 @@ class NaiveInterpreter
 		res = mproperty.lookup_first_definition(self.mainmodule, mtype)
 		lookup_first_definition_cache[mtype, mproperty] = res
 		return res
+	end
+
+	fun lookup_multi_definition(mpropmulti: MMethodMulti, args: Array[Instance]): MMethodDef
+	do
+		var dispatchdef = lookup_first_definition(args.first.mtype, mpropmulti)
+		assert dispatchdef isa MMethodMultiDef
+
+		for methoddef in dispatchdef.multimethoddefs do
+			if is_compatible_signature(methoddef, args) then return methoddef
+		end
+
+		fatal("No candidate found for multi method {mpropmulti.name}")
+		abort
+
+	end
+
+	fun is_compatible_signature(mpropdef: MMethodDef, args: Array[Instance]): Bool
+	do
+		var params = mpropdef.msignature.mparameters
+		var mmodule = mpropdef.mclassdef.mmodule
+		var mclassdeftype = mpropdef.mclassdef.bound_mtype
+
+		for i in [0..params.length[ do
+			if params[i].mtype.is_subtype(mmodule, mclassdeftype, args[i].mtype) then
+				return false
+			end
+		end
+
+		return true
 	end
 
 	# Read the attribute `mproperty` of an instance `recv` and return its value.
@@ -1721,6 +1764,9 @@ redef class AClassdef
 			if not no_init then v.send(mclass.the_root_init_mmethod.as(not null), [recv])
 			return null
 		else
+			print "MMM9 - {arguments.to_s}"
+			print "MMM9 - Multi? {mpropdef.mproperty isa MMethodMulti}"
+			dump_tree(false, false)
 			abort
 		end
 	end
@@ -2349,6 +2395,12 @@ redef class ASendExpr
 			return recv
 		end
 
+
+		if callsite == null then
+			print "MMM5 We sending {callsite == null}"
+			parent.dump_tree(false, false)
+
+		end
 		var args = v.varargize(callsite.mpropdef, callsite.signaturemap, recv, self.raw_arguments_cache)
 		if args == null then return null
 		var res = v.callsite(callsite, args)

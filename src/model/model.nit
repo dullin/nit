@@ -113,6 +113,21 @@ redef class Model
 		return mproperties_by_name.get_or_null(name)
 	end
 
+	# Remove all properties of `name.
+	# Used for multimethods to remove specific versions and keep the dispatcher
+	fun remove_mproperties_by_name(name: String)
+	do
+		var mprops = mproperties_by_name.get_or_null(name)
+		if mprops != null then mprops.clear
+	end
+
+	# Remove a single value from name list
+	fun remove_mproperty_with_name(name: String, mprop: MProperty)
+	do
+		mproperties_by_name.remove_one(name, mprop)
+	end
+
+
 	# The only null type
 	var null_type = new MNullType(self)
 
@@ -2429,6 +2444,12 @@ class MMethod
 	# Is the property a 'new' constructor?
 	var is_new: Bool = false is writable
 
+	# Is it a multimethod, who is the dispatcher?
+	var multi_dispatch: nullable MMethodMulti = null is writable
+
+	# For multimethods, what is the signature string for types
+	var multi_signature: String = "" is writable
+
 	# Is the property a legal constructor for a given class?
 	# As usual, visibility is not considered.
 	# FIXME not implemented
@@ -2463,6 +2484,24 @@ class MMethod
 
 	# Is this method a getter or a setter?
 	fun is_accessor: Bool do return is_getter or is_setter
+
+	redef var c_name is lazy do
+		if multi_dispatch == null then
+			return "{intro_mclassdef.mmodule.c_name}__{intro_mclassdef.mclass.name.to_cmangle}__{name.to_cmangle}"
+		else
+			return "{intro_mclassdef.mmodule.c_name}__{intro_mclassdef.mclass.name.to_cmangle}__{name.to_cmangle}__{multi_signature.to_cmangle}"
+		end
+	end
+end
+
+class MMethodMulti
+	super MMethod
+
+	var multimethods = new Array[MMethod]
+
+	redef var c_name is lazy do
+		return "{intro_mclassdef.mmodule.c_name}__{intro_mclassdef.mclass.name.to_cmangle}__{name.to_cmangle}__multi__dispatch"
+	end
 end
 
 # A global attribute
@@ -2690,6 +2729,13 @@ class MMethodDef
 	# command-line option.
 	# SEE: module `mixin`.
 	var constant_value: nullable Object = null is writable
+end
+
+class MMethodMultiDef
+	super MMethodDef
+
+	var multimethoddefs = new Array[MMethodDef]
+
 end
 
 # A local definition of an attribute
