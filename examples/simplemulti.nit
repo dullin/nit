@@ -12,3 +12,5 @@ end
 var s = new Simple
 print "Start"
 s.foo(new A)
+s.foo(new B)
+s.foo(new C)

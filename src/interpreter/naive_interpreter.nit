@@ -693,13 +693,16 @@ class NaiveInterpreter
 		var params = mpropdef.msignature.mparameters
 		var mmodule = mpropdef.mclassdef.mmodule
 		var mclassdeftype = mpropdef.mclassdef.bound_mtype
-
+		print "MMM16 - Testing signature"
 		for i in [0..params.length[ do
-			if params[i].mtype.is_subtype(mmodule, mclassdeftype, args[i].mtype) then
+			print "MMM16 - Testing {params[i].mtype.to_s} against {args[i+1].mtype.to_s} same? {params[i].mtype ==args [i+1].mtype}"
+			if not args[i+1].mtype.is_subtype(mmodule, mclassdeftype, params[i].mtype) then
+				print "MMM16 - Found it bad"
 				return false
 			end
 		end
 
+		print "MMM16 - found all OK"
 		return true
 	end
 
