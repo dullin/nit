@@ -196,6 +196,10 @@ class ModelBuilder
 
 		if ress != null then
 			assert ress.length > 1
+			# MMMBUG - Should we check for multiple MMethodMulti?
+			for mprop in ress do
+				if mprop isa MMethodMulti then return mprop
+			end
 			var s = new Array[String]
 			for mprop in ress do s.add mprop.full_name
 			self.error(anode, "Error: ambiguous property name `{name}` for `{mtype}`; conflict between {s.join(" and ")}.")
@@ -207,6 +211,80 @@ class ModelBuilder
 
 	private var try_get_mproperty_by_name2_cache = new HashMap3[MModule, MType, String, nullable MProperty]
 
+	fun try_get_mmethod_by_name_signature(mmodule: MModule, mtype: MType, name: String, multi_signature: String): nullable MMethod
+	do
+		var props = self.model.get_mproperties_by_name(name)
+		print "MMM16 - length {props.length}"
+		if props == null then
+			return null
+		end
+
+		var res: nullable MProperty = null
+		var ress: nullable Array[MProperty] = null
+		for mprop in props do
+			if not mtype.has_mproperty(mmodule, mprop) then continue
+			if not mmodule.is_visible(mprop.intro_mclassdef.mmodule, mprop.visibility) then continue
+
+			# new-factories are invisible outside of the class
+			if mprop isa MMethod and mprop.is_new and (not mtype isa MClassType or mprop.intro_mclassdef.mclass != mtype.mclass) then
+				continue
+			end
+
+			if res == null then
+				res = mprop
+				continue
+			end
+
+			# Two global properties?
+			# First, special case for init, keep the most specific ones
+			if res isa MMethod and mprop isa MMethod and res.is_init and mprop.is_init then
+				var restype = res.intro_mclassdef.bound_mtype
+				var mproptype = mprop.intro_mclassdef.bound_mtype
+				if mproptype.is_subtype(mmodule, null, restype) then
+					# found a most specific constructor, so keep it
+					res = mprop
+					continue
+				end
+			end
+
+			# Ok, just keep all prop in the ress table
+			if ress == null then
+				ress = new Array[MProperty]
+				ress.add(res)
+			end
+			ress.add(mprop)
+		end
+
+		# There is conflict?
+		if ress != null and res isa MMethod and res.is_init then
+			# special case forinit again
+			var restype = res.intro_mclassdef.bound_mtype
+			var ress2 = new Array[MProperty]
+			for mprop in ress do
+				var mproptype = mprop.intro_mclassdef.bound_mtype
+				if not restype.is_subtype(mmodule, null, mproptype) then
+					ress2.add(mprop)
+				else if not mprop isa MMethod or not mprop.is_init then
+					ress2.add(mprop)
+				end
+			end
+			if ress2.is_empty then
+				ress = null
+			else
+				ress = ress2
+				ress.add(res)
+			end
+		end
+
+		if ress != null then
+			assert ress.length > 1
+			for mprop in ress do
+				assert mprop isa MMethod
+				if not mprop isa MMethodMulti  and mprop.multi_signature == multi_signature then return mprop
+			end
+		end
+		return null
+	end
 
 	# Alias for try_get_mproperty_by_name2(anode, mclassdef.mmodule, mclassdef.mtype, name)
 	fun try_get_mproperty_by_name(anode: nullable ANode, mclassdef: MClassDef, name: String): nullable MProperty

@@ -49,6 +49,9 @@ redef class ModelBuilder
 	# Public clients need to use `mpropdef2node` to access stuff.
 	private var mpropdef2npropdef = new HashMap[MPropDef, APropdef]
 
+	# Keep the mprops constructed in the MClassDef to build signatures
+	var mpropmultis = new HashSet[MMethodMulti]
+
 	# Associate a `npropdef` with its `mpropdef`
 	#
 	# Be careful, this method is unsafe, no checking is done when it's used.
@@ -127,7 +130,13 @@ redef class ModelBuilder
 				npropdef.build_property(self, mclassdef)
 			end
 			for npropdef in nclassdef2.n_propdefs do
+				# Collect the multimethods to build their signatures
+				mpropmultis = new HashSet[MMethodMulti]
 				npropdef.build_signature(self)
+			end
+			for mpropmulti in mpropmultis do
+				print "MMM15 - Building Multi method dispatcher {mpropmulti.name}"
+				build_dispatcher(mclassdef, mpropmulti)
 			end
 			for npropdef in nclassdef2.n_propdefs do
 				if not npropdef isa ATypePropdef then continue
@@ -153,6 +162,22 @@ redef class ModelBuilder
 			end
 		end
 		process_default_constructors(nclassdef)
+	end
+
+	fun build_dispatcher(mclassdef: MClassDef, mpropmulti: MMethodMulti)
+	do
+		var mpropdef_multi_sorter = new MPropDefMultiSorter(mclassdef.mmodule)
+		var dispatchdef = new MMethodMultiDef(mclassdef, mpropmulti, mclassdef.location)
+		for multiprop in mpropmulti.multimethods do
+                var multipropdef = multiprop.lookup_first_definition(mclassdef.mmodule, mclassdef.bound_mtype)
+                dispatchdef.multimethoddefs.add(multipropdef)
+        end
+		mpropdef_multi_sorter.sort(dispatchdef.multimethoddefs)
+		for mpropdef in dispatchdef.multimethoddefs do
+				toolcontext.modelbuilder.toolcontext.info("MMM14 Method name sorted : {mpropdef.mproperty.c_name}", 4)
+		end
+		# Take the most generic signature for the dispatcher
+		dispatchdef.msignature = dispatchdef.multimethoddefs.last.msignature
 	end
 
 	# the root init of the Object class
@@ -538,6 +563,9 @@ redef class MClassDef
 	# Used to check multiple definition of a property.
 	var mprop2npropdef: Map[MProperty, APropdef] = new HashMap[MProperty, APropdef]
 
+	# Keep the multimethods definition to check for multiple definitions
+	var mpropmultinames: Map[String, APropdef] = new HashMap[String, APropdef]
+
 	# Build the virtual type `SELF` only for introduction `MClassDef`
 	fun build_self_type(modelbuilder: ModelBuilder, nclassdef: AClassdef)
 	do
@@ -895,38 +923,64 @@ redef class AMethPropdef
 				return
 			end
 		else
-			if mprop.is_broken then return
-			# MMMBUG - Check into check redef, don't emit error just yet
-			if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then 
-				var mpropmulti: MMethodMulti
-				if not mprop isa MMethodMulti then
-					# Create new MultiMethod
-					modelbuilder.toolcontext.info("MMM1 - Creating new multimethod for {name}", 4)
+			var mpropmulti: MMethodMulti
 
-					# Remove the old property from the model and replace it with our dispatcher
-					modelbuilder.model.remove_mproperties_by_name(name)
+			if mprop.is_broken then return
+			if not mprop isa MMethodMulti then
+				if n_signature == null or self.n_signature.types_to_s(modelbuilder, mclassdef) == mprop.multi_signature or self.n_signature.types_to_s(modelbuilder, mclassdef) == "" then
+					# Redefining a single normal method
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then print "MMM25"
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then return
+					check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
+				else
+					# Create new Multimethod Dispatch
+					modelbuilder.toolcontext.info("MMM1 - Creating new multimethod for {name}", 4)
+					var oldprop = mprop
 
 					mpropmulti = new MMethodMulti(mclassdef, name, mclassdef.location, public_visibility)
-					var mpropdefmulti = new MMethodMultiDef(mclassdef, mpropmulti, self.location)
-
 					mprop.multi_dispatch = mpropmulti
 					mpropmulti.multimethods.add(mprop)
-				else
-					mpropmulti = mprop
+
+					# New Multimethod
+					var mvisibility = new_property_visibility(modelbuilder, mclassdef, self.n_visibility)
+					mprop = new MMethod(mclassdef, name, self.location, mvisibility)
+					mprop.multi_signature = self.n_signature.types_to_s(modelbuilder, mclassdef)
+					mprop.multi_dispatch = mpropmulti
+					mpropmulti.multimethods.add(mprop)
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then 
+						print "MMM26 - {self.n_signature.types_to_s(modelbuilder, mclassdef) == oldprop.multi_signature} X {self.n_signature.types_to_s(modelbuilder, mclassdef)} {oldprop.multi_signature}"
+					end
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then
+						mprop.is_broken = true
+						mprop.multi_dispatch.is_broken = true
+						return
+					end
 				end
-
-				var mvisibility = new_property_visibility(modelbuilder, mclassdef, self.n_visibility)
-				mprop = new MMethod(mclassdef, name, self.location, mvisibility)
-				mprop.multi_signature = self.n_signature.types_to_s(modelbuilder, mclassdef)
-				modelbuilder.model.remove_mproperty_with_name(name, mprop)
-				mprop.multi_dispatch = mpropmulti
-				mpropmulti.multimethods.add(mprop)
-				modelbuilder.toolcontext.info("MMM1 - Adding new variant to multimethod {name} with {mprop.multi_signature}", 4)
-
-
 			else
-				check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
-			end 
+				var mmethod = modelbuilder.try_get_mmethod_by_name_signature(mclassdef.mmodule, mclassdef.bound_mtype, name, self.n_signature.types_to_s(modelbuilder, mclassdef))
+				mpropmulti = mprop
+
+				if mmethod != null then
+					# Redefining a method inside a multimethod
+					mprop = mmethod
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, true, mprop) then print "MMM27"
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, true, mprop) then return
+					check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
+				else
+					# New variant for multimethod
+					var mvisibility = new_property_visibility(modelbuilder, mclassdef, self.n_visibility)
+					mprop = new MMethod(mclassdef, name, self.location, mvisibility)
+					mprop.multi_signature = self.n_signature.types_to_s(modelbuilder, mclassdef)
+					mprop.multi_dispatch = mpropmulti
+					mpropmulti.multimethods.add(mprop)
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then print "MMM28"
+					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then
+						mprop.is_broken = true
+						mprop.multi_dispatch.is_broken = true
+						return
+					end
+				end
+			end
 		end
 
 		# Check name conflicts in the local class for constructors.
@@ -942,6 +996,7 @@ redef class AMethPropdef
 			end
 		end
 
+		mclassdef.mpropmultinames[mprop.name + mprop.multi_signature] = self
 		mclassdef.mprop2npropdef[mprop] = self
 
 		var mpropdef = new MMethodDef(mclassdef, mprop, self.location)
@@ -964,40 +1019,6 @@ redef class AMethPropdef
 		else
 			modelbuilder.toolcontext.info("{mpropdef} redefines method {mprop.full_name}", 4)
 		end
-	end
-
-	# MMMBUG - Mostly the same version as AProperty but bypasses errors for multimethods
-	redef private fun check_redef_keyword(modelbuilder: ModelBuilder, mclassdef: MClassDef, kwredef: nullable Token, need_redef: Bool, mprop: MProperty): Bool
-	do
-		if mclassdef.mprop2npropdef.has_key(mprop) then
-			#modelbuilder.error(self, "Error: a property `{mprop}` is already defined in class `{mclassdef.mclass}` at line {mclassdef.mprop2npropdef[mprop].location.line_start}.")
-			return false
-		end
-		if mprop isa MMethod and mprop.is_root_init then return true
-		if kwredef == null then
-			if need_redef then
-				#modelbuilder.error(self, "Redef Error: `{mclassdef.mclass}::{mprop.name}` is an inherited property. To redefine it, add the `redef` keyword.")
-				return false
-			end
-
-			# Check for full-name conflicts in the package.
-			# A public property should have a unique qualified name `package::class::prop`.
-			if mprop.intro_mclassdef.mmodule.mgroup != null and mprop.visibility >= protected_visibility then
-				var others = modelbuilder.model.get_mproperties_by_name(mprop.name)
-				if others != null then for other in others do
-					if other != mprop and other.intro_mclassdef.mmodule.mgroup != null and other.intro_mclassdef.mmodule.mgroup.mpackage == mprop.intro_mclassdef.mmodule.mgroup.mpackage and other.intro_mclassdef.mclass.name == mprop.intro_mclassdef.mclass.name and other.visibility >= protected_visibility then
-						modelbuilder.advice(self, "full-name-conflict", "Warning: A property named `{other.full_name}` is already defined in module `{other.intro_mclassdef.mmodule}` for the class `{other.intro_mclassdef.mclass.name}`.")
-						break
-					end
-				end
-			end
-		else
-			if not need_redef then
-				modelbuilder.error(self, "Error: no property `{mclassdef.mclass}::{mprop.name}` is inherited. Remove the `redef` keyword to define a new property.")
-				return false
-			end
-		end
-		return true
 	end
 
 	redef fun build_signature(modelbuilder)
@@ -1103,15 +1124,17 @@ redef class AMethPropdef
 		var at = self.get_single_annotation("lazy", modelbuilder)
 		if at != null then modelbuilder.error(at, "Syntax Error: `lazy` must be used on attributes.")
 
-		if mproperty.multi_dispatch != null then
+		var mpropdispatch = mproperty.multi_dispatch
+		if mpropdispatch != null then
 			# Check to see if multimethod has a signature
-			var multi_signature = mproperty.multi_dispatch.intro.msignature
-			print "MMM7 - Signature is empty? {multi_signature == null} for {mproperty.name} and {mproperty.multi_signature}"
+			#var multi_signature = mpropdispatch.intro.msignature
+			#print "MMM7 - Signature is empty? {multi_signature == null} for {mproperty.name} and {mproperty.multi_signature}"
 			# MMMBUG - Keep the most general?
-			if multi_signature == null then
-				var new_multi_msignature = new MSignature(mparameters, ret_type)
-				mproperty.multi_dispatch.intro.msignature = new_multi_msignature
-			end
+			#if multi_signature == null then
+			modelbuilder.mpropmultis.add(mpropdispatch)
+			#	var new_multi_msignature = new MSignature(mparameters, ret_type)
+			#	mpropdispatch.intro.msignature = new_multi_msignature
+			#end
 		end
 
 		var atautoinit = self.get_single_annotation("autoinit", modelbuilder)
@@ -1988,4 +2011,37 @@ redef class ATypePropdef
 			end
 		end
 	end
+end
+
+private class MPropDefMultiSorter
+	super Comparator
+	redef type COMPARED: MMethodDef
+	var mmodule: MModule
+
+
+	# Compares the methods definitions by comparing the neting of specialisation
+	# if nesting is the same. Looks at each individual parameters and prioritizing
+	# the last one.
+	redef fun compare(pa, pb)
+	do
+		var a = pa.msignature.mparameters
+		var b = pb.msignature.mparameters
+        assert a.length == b.length
+
+        for i in [0..a.length[ do
+            var atype = a[i].mtype
+            var btype = b[i].mtype
+            if atype == btype then
+                # Check the next parameter if we have the same one
+                continue
+            else if atype.is_subtype(mmodule, pa.mclassdef.bound_mtype, btype) then
+                return -1
+            else
+                return 1
+            end
+        end
+
+        # Shouldn't happen while using it on multimethods
+        return 0
+    end
 end

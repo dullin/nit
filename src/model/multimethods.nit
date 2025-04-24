@@ -1,3 +1,5 @@
+module multimethods
+
 import phase
 import astbuilder
 import astprinter
@@ -7,49 +9,16 @@ intrude import scope
 intrude import typing
 
 redef class ToolContext
-    var multimethod_phase: Phase = new MultimethodsPhase(self, [modelize_property_phase,typing_phase])
+    var multimethod_phase: Phase = new MultimethodsPhase(self, [modelize_property_phase])
 end
 
 private class MultimethodsPhase
     super Phase
 
     redef fun process_nclassdef(nclassdef)do
-        if nclassdef isa AStdClassdef then toolcontext.modelbuilder.build_multi_dispatch(nclassdef)
+        #if nclassdef isa AStdClassdef then toolcontext.modelbuilder.build_multi_dispatch(nclassdef)
 	end
 
-end
-
-private class MPropDefMultiSorter
-	super Comparator
-	redef type COMPARED: MMethodDef
-	var mmodule: MModule
-
-
-	# Compares the methods definitions by comparing the neting of specialisation
-	# if nesting is the same. Looks at each individual parameters and prioritizing
-	# the last one.
-	redef fun compare(pa, pb)
-	do
-		var a = pa.msignature.mparameters
-		var b = pb.msignature.mparameters
-        assert a.length == b.length
-
-        for i in [0..a.length[ do
-            var atype = a[i].mtype
-            var btype = b[i].mtype
-            if atype == btype then
-                # Check the next parameter if we have the same one
-                continue
-            else if atype.is_subtype(mmodule, pa.mclassdef.bound_mtype, btype) then
-                return -1
-            else
-                return 1
-            end
-        end
-
-        # Shouldn't happen while using it on multimethods
-        return 0
-    end
 end
 
 redef class ModelBuilder

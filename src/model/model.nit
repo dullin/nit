@@ -113,21 +113,6 @@ redef class Model
 		return mproperties_by_name.get_or_null(name)
 	end
 
-	# Remove all properties of `name.
-	# Used for multimethods to remove specific versions and keep the dispatcher
-	fun remove_mproperties_by_name(name: String)
-	do
-		var mprops = mproperties_by_name.get_or_null(name)
-		if mprops != null then mprops.clear
-	end
-
-	# Remove a single value from name list
-	fun remove_mproperty_with_name(name: String, mprop: MProperty)
-	do
-		mproperties_by_name.remove_one(name, mprop)
-	end
-
-
 	# The only null type
 	var null_type = new MNullType(self)
 

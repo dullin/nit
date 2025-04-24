@@ -5,8 +5,7 @@ class C super B end
 class Simple
 
     fun foo(a:A) do print "A" end
-    fun foo(c:C) do print "C" end
-    fun foo(b:B) do print "B" end
+    fun foo(a:A) do print "C" end
 end
 
 var s = new Simple
