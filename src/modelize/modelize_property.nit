@@ -32,13 +32,6 @@ private class ModelizePropertyPhase
 		for nclassdef in nmodule.n_classdefs do
 			if nclassdef.all_defs == null then continue # skip non principal classdef
 			toolcontext.modelbuilder.build_properties(nclassdef)
-			# MMM12 - Debug text to see the number of propdefs
-			if nclassdef.mclassdef.name == "Simple" then
-				toolcontext.modelbuilder.toolcontext.info("MMM3 - Simple length {nclassdef.mclassdef.mpropdefs.length} found : {nclassdef.mclassdef.mpropdefs.join(" - ")}", 4)
-				for mpropdef in nclassdef.mclassdef.mpropdefs do
-					toolcontext.modelbuilder.toolcontext.info("MMM3 Method name : {mpropdef.mproperty.c_name}", 4)
-				end
-			end
 		end
 	end
 end
@@ -135,7 +128,6 @@ redef class ModelBuilder
 				npropdef.build_signature(self)
 			end
 			for mpropmulti in mpropmultis do
-				print "MMM15 - Building Multi method dispatcher {mpropmulti.name}"
 				build_dispatcher(mclassdef, mpropmulti)
 			end
 			for npropdef in nclassdef2.n_propdefs do
@@ -173,9 +165,6 @@ redef class ModelBuilder
                 dispatchdef.multimethoddefs.add(multipropdef)
         end
 		mpropdef_multi_sorter.sort(dispatchdef.multimethoddefs)
-		for mpropdef in dispatchdef.multimethoddefs do
-				toolcontext.modelbuilder.toolcontext.info("MMM14 Method name sorted : {mpropdef.mproperty.c_name}", 4)
-		end
 		# Take the most generic signature for the dispatcher
 		dispatchdef.msignature = dispatchdef.multimethoddefs.last.msignature
 	end
@@ -929,12 +918,11 @@ redef class AMethPropdef
 			if not mprop isa MMethodMulti then
 				if n_signature == null or self.n_signature.types_to_s(modelbuilder, mclassdef) == mprop.multi_signature or self.n_signature.types_to_s(modelbuilder, mclassdef) == "" then
 					# Redefining a single normal method
-					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then print "MMM25"
 					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, not self isa AMainMethPropdef, mprop) then return
 					check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
 				else
 					# Create new Multimethod Dispatch
-					modelbuilder.toolcontext.info("MMM1 - Creating new multimethod for {name}", 4)
+					modelbuilder.toolcontext.info("Creating new multimethod for {name}", 4)
 					var oldprop = mprop
 
 					mpropmulti = new MMethodMulti(mclassdef, name, mclassdef.location, public_visibility)
@@ -947,9 +935,6 @@ redef class AMethPropdef
 					mprop.multi_signature = self.n_signature.types_to_s(modelbuilder, mclassdef)
 					mprop.multi_dispatch = mpropmulti
 					mpropmulti.multimethods.add(mprop)
-					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then 
-						print "MMM26 - {self.n_signature.types_to_s(modelbuilder, mclassdef) == oldprop.multi_signature} X {self.n_signature.types_to_s(modelbuilder, mclassdef)} {oldprop.multi_signature}"
-					end
 					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then
 						mprop.is_broken = true
 						mprop.multi_dispatch.is_broken = true
@@ -963,7 +948,6 @@ redef class AMethPropdef
 				if mmethod != null then
 					# Redefining a method inside a multimethod
 					mprop = mmethod
-					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, true, mprop) then print "MMM27"
 					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, true, mprop) then return
 					check_redef_property_visibility(modelbuilder, self.n_visibility, mprop)
 				else
@@ -973,7 +957,6 @@ redef class AMethPropdef
 					mprop.multi_signature = self.n_signature.types_to_s(modelbuilder, mclassdef)
 					mprop.multi_dispatch = mpropmulti
 					mpropmulti.multimethods.add(mprop)
-					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then print "MMM28"
 					if not self.check_redef_keyword(modelbuilder, mclassdef, n_kwredef, false, mprop) then
 						mprop.is_broken = true
 						mprop.multi_dispatch.is_broken = true
@@ -1126,15 +1109,8 @@ redef class AMethPropdef
 
 		var mpropdispatch = mproperty.multi_dispatch
 		if mpropdispatch != null then
-			# Check to see if multimethod has a signature
-			#var multi_signature = mpropdispatch.intro.msignature
-			#print "MMM7 - Signature is empty? {multi_signature == null} for {mproperty.name} and {mproperty.multi_signature}"
-			# MMMBUG - Keep the most general?
-			#if multi_signature == null then
+			# Add the method for building the Mulitmethod Dispatcher
 			modelbuilder.mpropmultis.add(mpropdispatch)
-			#	var new_multi_msignature = new MSignature(mparameters, ret_type)
-			#	mpropdispatch.intro.msignature = new_multi_msignature
-			#end
 		end
 
 		var atautoinit = self.get_single_annotation("autoinit", modelbuilder)

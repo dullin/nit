@@ -34,7 +34,6 @@ redef class ModelBuilder
                 var mmethodmulti = npropdef.mpropdef.mproperty.multi_dispatch
                 if mmethodmulti != null then
                     multimethods.add(mmethodmulti)
-                    print "MMM13 - Found a multi method variant length : {multimethods.length}"
                 end
             end
         end
@@ -47,9 +46,6 @@ redef class ModelBuilder
                 dispatchdef.multimethoddefs.add(multipropdef)
             end
             mpropdef_multi_sorter.sort(dispatchdef.multimethoddefs)
-            for mpropdef in dispatchdef.multimethoddefs do
-					toolcontext.modelbuilder.toolcontext.info("MMM14 Method name sorted : {mpropdef.mproperty.c_name}", 4)
-			end
         end
     end
 end

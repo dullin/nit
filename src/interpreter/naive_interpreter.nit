@@ -556,13 +556,6 @@ class NaiveInterpreter
 		end
 		assert args.length == mpropdef.msignature.arity + 1 else debug("Invalid arity for {mpropdef}. {args.length} arguments given.")
 
-		# If we have a multi method call, don't look into the ast
-		if mpropdef.mproperty isa MMethodMulti then
-			print "MMM10 - {args.to_s}"
-			print "MMM10 - Multi? {mpropdef.mproperty isa MMethodMulti}"
-			
-		end
-
 		# Look for the AST node that implements the property
 		var val = mpropdef.constant_value
 
@@ -650,8 +643,6 @@ class NaiveInterpreter
 		var mtype = recv.mtype
 		# If we have a multi method call, don't look into the ast
 		if mproperty isa MMethodMulti then
-			print "MMM11 - {args.to_s}"
-			#var multipropdef = lookup_first_definition(mtype, mproperty.multimethods[0])
 			var multipropdef = lookup_multi_definition(mproperty, args)
 			return self.call(multipropdef, args)
 		end
@@ -693,16 +684,12 @@ class NaiveInterpreter
 		var params = mpropdef.msignature.mparameters
 		var mmodule = mpropdef.mclassdef.mmodule
 		var mclassdeftype = mpropdef.mclassdef.bound_mtype
-		print "MMM16 - Testing signature"
 		for i in [0..params.length[ do
-			print "MMM16 - Testing {params[i].mtype.to_s} against {args[i+1].mtype.to_s} same? {params[i].mtype ==args [i+1].mtype}"
 			if not args[i+1].mtype.is_subtype(mmodule, mclassdeftype, params[i].mtype) then
-				print "MMM16 - Found it bad"
 				return false
 			end
 		end
 
-		print "MMM16 - found all OK"
 		return true
 	end
 
@@ -1767,9 +1754,6 @@ redef class AClassdef
 			if not no_init then v.send(mclass.the_root_init_mmethod.as(not null), [recv])
 			return null
 		else
-			print "MMM9 - {arguments.to_s}"
-			print "MMM9 - Multi? {mpropdef.mproperty isa MMethodMulti}"
-			dump_tree(false, false)
 			abort
 		end
 	end
@@ -2398,12 +2382,6 @@ redef class ASendExpr
 			return recv
 		end
 
-
-		if callsite == null then
-			print "MMM5 We sending {callsite == null}"
-			parent.dump_tree(false, false)
-
-		end
 		var args = v.varargize(callsite.mpropdef, callsite.signaturemap, recv, self.raw_arguments_cache)
 		if args == null then return null
 		var res = v.callsite(callsite, args)

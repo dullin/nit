@@ -214,7 +214,6 @@ class ModelBuilder
 	fun try_get_mmethod_by_name_signature(mmodule: MModule, mtype: MType, name: String, multi_signature: String): nullable MMethod
 	do
 		var props = self.model.get_mproperties_by_name(name)
-		print "MMM16 - length {props.length}"
 		if props == null then
 			return null
 		end
